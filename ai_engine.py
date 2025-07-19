@@ -12,7 +12,7 @@ from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 
 try:
-    import google.generativeai as genai
+    from google import genai
     HAS_GEMINI = True
 except ImportError:
     HAS_GEMINI = False
@@ -31,12 +31,47 @@ class AIResponse:
     is_structured: bool = False  # True si es respuesta estructurada (JSON)
 
 class AIEngine:
+    def _get_gemini_client(self):
+        from google import genai
+        return genai.Client(api_key=self.api_key)
+
+    def _ask_grounding_mode(self, query: str) -> str:
+        from google import genai
+        from google.genai import types
+        import os
+        client = genai.Client(api_key=self.api_key)
+        model = "gemini-2.5-flash"
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=query)],
+            ),
+        ]
+        tools = [
+            types.Tool(url_context=types.UrlContext()),
+            types.Tool(googleSearch=types.GoogleSearch()),
+        ]
+        generate_content_config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            tools=tools,
+            response_mime_type="text/plain",
+        )
+        response_text = ""
+        for chunk in client.models.generate_content_stream(
+            model=model,
+            contents=contents,
+            config=generate_content_config,
+        ):
+            if hasattr(chunk, 'text') and chunk.text:
+                response_text += chunk.text
+        return response_text
     """Motor de IA para procesamiento de consultas"""
     
     def __init__(self, api_key: Optional[str] = None, grounding_enabled: bool = False):
         self.api_key = api_key or os.getenv('GEMINI_API_KEY')
         self.grounding_enabled = grounding_enabled
-        self.model = None
+        self.client = None
+        self.model_name = None
         self.is_initialized = False
         self.logger = logging.getLogger(__name__)
         
@@ -55,7 +90,7 @@ class AIEngine:
             self.logger.setLevel(logging.INFO)
         
         if not HAS_GEMINI:
-            self.logger.warning("Google GenerativeAI no está disponible. Instale: pip install google-generativeai")
+            self.logger.warning("Google GenAI no está disponible. Instale: pip install google-genai")
             return
             
         if not self.api_key:
@@ -67,9 +102,11 @@ class AIEngine:
     def _initialize_gemini(self):
         """Inicializar conexión con Gemini"""
         try:
-            genai.configure(api_key=self.api_key)
-            # Usar modelo gemini-2.5-flash-lite-preview-06-17
-            self.model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17')
+            from google import genai
+            # Crear cliente con API key
+            self.client = genai.Client(api_key=self.api_key)
+            # Definir modelo a usar
+            self.model_name = 'gemini-2.5-flash-lite-preview-06-17'
             self.is_initialized = True
             self.logger.info("Motor AI inicializado correctamente con Gemini")
         except Exception as e:
@@ -117,28 +154,16 @@ class AIEngine:
             self.logger.info(f"📤 [DEBUG] Prompt enviado: {prompt}")
             
             if self.grounding_enabled:
-                # Modo GROUNDING: respuesta natural sin restricciones
-                self.logger.info("🌐 [DEBUG] Usando modo GROUNDING (respuesta natural)")
-                response = self.model.generate_content(prompt)
-
-                # Logging de la respuesta RAW completa para diagnóstico
-                try:
-                    self.logger.info(f"� [DEBUG] Respuesta RAW (GROUNDING): {response}")
-                    # Si el objeto tiene __dict__ o atributos útiles, loguear también
-                    if hasattr(response, '__dict__'):
-                        self.logger.info(f"🟣 [DEBUG] Respuesta __dict__ (GROUNDING): {vars(response)}")
-                except Exception as e:
-                    self.logger.error(f"[DEBUG] Error al loguear respuesta RAW: {e}")
-
-                self.logger.info(f"📥 [DEBUG] Respuesta recibida (GROUNDING): {response.text}")
-
+                # Modo GROUNDING: respuesta natural usando tools y config avanzada
+                self.logger.info("🌐 [DEBUG] Usando modo GROUNDING (tools y config avanzada)")
+                response_text = self._ask_grounding_mode(query)
+                self.logger.info(f"📥 [DEBUG] Respuesta recibida (GROUNDING): {response_text}")
                 processing_time = time.time() - start_time
-
-                if response.text:
-                    is_markdown = self._detect_markdown(response.text)
+                if response_text:
+                    is_markdown = self._detect_markdown(response_text)
                     self.logger.info(f"✅ [DEBUG] Respuesta procesada - Markdown: {is_markdown}")
                     return AIResponse(
-                        content=response.text,
+                        content=response_text,
                         success=True,
                         is_markdown=is_markdown,
                         processing_time=processing_time,
@@ -147,7 +172,9 @@ class AIEngine:
             else:
                 # Modo NO-GROUNDING: respuesta estructurada con schema JSON
                 self.logger.info("📋 [DEBUG] Usando modo NO-GROUNDING (respuesta estructurada)")
-                generation_config = genai.GenerationConfig(
+                from google.genai import types
+
+                generation_config = types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema={
                         "type": "object",
@@ -159,18 +186,27 @@ class AIEngine:
                                 "items": {"type": "string"}
                             },
                             "suggested_code_snippets": {
-                                "type": "array", 
+                                "type": "array",
                                 "items": {"type": "string"}
                             }
                         }
                     }
                 )
-                
+
                 self.logger.info(f"⚙️ [DEBUG] Generation config: {generation_config}")
-                
-                response = self.model.generate_content(
-                    prompt,
-                    generation_config=generation_config
+
+                # Crear contenido usando el nuevo SDK
+                contents = [
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=prompt)],
+                    ),
+                ]
+
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents,
+                    config=generation_config
                 )
                 
                 self.logger.info(f"📥 [DEBUG] Respuesta recibida (NO-GROUNDING): {response.text}")
