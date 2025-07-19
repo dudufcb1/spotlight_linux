@@ -1,0 +1,19 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Spotlight Linux
+GenericName=AI Search Tool
+Comment=AI-powered search and query tool for Linux, inspired by macOS Spotlight
+Exec=/usr/local/bin/spotlight-linux
+Icon=spotlight-linux
+Terminal=false
+Categories=Utility;System;Office;
+Keywords=search;ai;spotlight;query;assistant;
+StartupNotify=true
+NoDisplay=false
+MimeType=
+Actions=
+
+[Desktop Action new-query]
+Name=New AI Query
+Exec=/usr/local/bin/spotlight-linux --show

@@ -1,0 +1,104 @@
+{
+  "analysis": {
+    "hypotheses": [
+      "Un chat simple de IA puede ser más útil que búsqueda compleja",
+      "Gemini API proporcionará respuestas de calidad",
+      "Interfaz minimalista mejorará la experiencia de usuario"
+    ],
+    "root_cause": "La búsqueda de archivos era compleja y propensa a errores, mientras que un chat de IA puede ser más directo y útil",
+    "tradeoffs": [
+      "Simplicidad vs funcionalidad completa",
+      "Dependencia de API externa vs funcionalidad local",
+      "Velocidad de desarrollo vs características avanzadas"
+    ]
+  },
+  "experiments": [],
+  "implementation_plan": {
+    "md_reference": "docs/memory/TASK_20250719_040000.md",
+    "steps": [
+      {
+        "estimated_time": "45min",
+        "status": "doing",
+        "step": "Crear ai_engine.py para integración con Gemini"
+      },
+      {
+        "estimated_time": "1h",
+        "status": "todo",
+        "step": "Simplificar main_tkinter.py para chat de IA"
+      },
+      {
+        "estimated_time": "30min",
+        "status": "todo",
+        "step": "Implementar shortcuts globales Ctrl+P y Escape"
+      },
+      {
+        "estimated_time": "45min",
+        "status": "todo",
+        "step": "Crear interfaz de chat con mensaje de bienvenida"
+      },
+      {
+        "estimated_time": "1h",
+        "status": "todo",
+        "step": "Implementar panel de respuesta con scroll (max 500px)"
+      },
+      {
+        "estimated_time": "45min",
+        "status": "todo",
+        "step": "Agregar renderizado básico de markdown"
+      },
+      {
+        "estimated_time": "30min",
+        "status": "todo",
+        "step": "Testear MVP completo"
+      }
+    ]
+  },
+  "links": {
+    "designs": [],
+    "docs": [],
+    "runs": [],
+    "tickets": []
+  },
+  "meta": {
+    "author": "github_copilot",
+    "date": "2025-07-19T04:00:00Z",
+    "project": "spotlight_linux",
+    "status": "doing",
+    "task_id": "TASK_20250719_040000"
+  },
+  "next_actions": [
+    "Crear módulo ai_engine.py",
+    "Refactorizar main_tkinter.py",
+    "Implementar shortcuts globales"
+  ],
+  "open_questions": [
+    "¿Qué API key usar para Gemini?",
+    "¿Configuración específica para markdown rendering?",
+    "¿Timeout para llamadas API?"
+  ],
+  "problem": {
+    "business_goal": "Crear MVP de chat IA funcional que reemplace funcionalidad de búsqueda compleja",
+    "constraints": [
+      "Interfaz máximo 500px altura",
+      "Solo texto/markdown básico por ahora",
+      "Usar API de Gemini",
+      "Mantener diseño no intrusivo"
+    ],
+    "user_request": "MVP de IA con panel de chat: Ctrl+P abre, mensaje bienvenida, campo entrada, respuesta en scroll max 500px, cierre con Escape, integración Gemini"
+  },
+  "schema_version": "1.0.0",
+  "scope": {
+    "components": [
+      "AI Engine",
+      "Interfaz de chat",
+      "Sistema de shortcuts",
+      "Renderizado de markdown"
+    ],
+    "files": [
+      "ai_engine.py (nuevo)",
+      "main_tkinter.py",
+      "requirements.txt"
+    ]
+  },
+  "strategies_tried": []
+}

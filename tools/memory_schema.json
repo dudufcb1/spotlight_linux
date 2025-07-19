@@ -1,0 +1,225 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://simple-answer.com/schemas/memory-v1.json",
+  "title": "Simple Answer Memory Schema",
+  "description": "Esquema para memoria estructurada del sistema Simple Answer",
+  "type": "object",
+  "required": ["schema_version", "meta", "scope", "problem"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Versión del esquema (semver)"
+    },
+    "meta": {
+      "type": "object",
+      "required": ["date", "project", "author", "task_id", "status"],
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp ISO-8601 de creación"
+        },
+        "project": {
+          "type": "string",
+          "description": "Nombre del proyecto"
+        },
+        "author": {
+          "type": "string",
+          "description": "Autor de la tarea (augment_agent, user, etc.)"
+        },
+        "task_id": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_-]+$",
+          "description": "Identificador único de la tarea"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["todo", "doing", "review", "done", "blocked"],
+          "description": "Estado actual de la tarea"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "required": ["files", "components"],
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Lista de archivos afectados (rutas relativas)"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Módulos, clases o componentes afectados"
+        }
+      }
+    },
+    "problem": {
+      "type": "object",
+      "required": ["user_request"],
+      "properties": {
+        "user_request": {
+          "type": "string",
+          "description": "Descripción del requerimiento del usuario"
+        },
+        "business_goal": {
+          "type": "string",
+          "description": "Objetivo de negocio"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Limitaciones y restricciones"
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "properties": {
+        "root_cause": {
+          "type": "string",
+          "description": "Causa raíz identificada"
+        },
+        "hypotheses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Hipótesis consideradas"
+        },
+        "tradeoffs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Trade-offs identificados"
+        }
+      }
+    },
+    "implementation_plan": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["step", "status"],
+            "properties": {
+              "step": {
+                "type": "string",
+                "description": "Descripción del paso"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["todo", "doing", "done"],
+                "description": "Estado del paso"
+              },
+              "estimated_time": {
+                "type": "string",
+                "description": "Tiempo estimado (ej: 30min, 2h)"
+              }
+            }
+          }
+        },
+        "md_reference": {
+          "type": "string",
+          "description": "Ruta al archivo MD con detalles extendidos"
+        }
+      }
+    },
+    "experiments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["test_case", "result"],
+        "properties": {
+          "test_case": {
+            "type": "string",
+            "description": "Descripción del caso de prueba"
+          },
+          "result": {
+            "type": "string",
+            "description": "Resultado obtenido"
+          },
+          "logs_link": {
+            "type": "string",
+            "description": "Enlace a logs o evidencia"
+          }
+        }
+      }
+    },
+    "strategies_tried": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["strategy", "outcome", "reason_for_failure"],
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "description": "Estrategia intentada"
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Resultado obtenido"
+          },
+          "reason_for_failure": {
+            "type": "string",
+            "description": "Motivo del fallo"
+          }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Preguntas pendientes para el líder/cliente"
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Acciones a realizar en la próxima iteración"
+    },
+    "links": {
+      "type": "object",
+      "properties": {
+        "docs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "tickets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "designs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "runs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

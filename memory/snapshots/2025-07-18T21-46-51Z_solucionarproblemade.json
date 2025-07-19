@@ -1,0 +1,93 @@
+{
+  "analysis": {
+    "hypotheses": [
+      "AppImage resolverá problemas de distribución",
+      "PyInstaller empaquetará dependencias correctamente"
+    ],
+    "root_cause": "PyQt6 requiere dependencias del sistema que complican distribución",
+    "tradeoffs": [
+      "Tamaño archivo vs portabilidad total",
+      "Tiempo startup vs cero configuración"
+    ]
+  },
+  "experiments": [
+    {
+      "logs_link": "",
+      "result": "Error de dependencias confirmado",
+      "test_case": "Ejecución PyQt6 en sistema limpio"
+    }
+  ],
+  "implementation_plan": {
+    "md_reference": "docs/memory/TASK_20250718_230000.md",
+    "steps": [
+      {
+        "estimated_time": "2h",
+        "status": "todo",
+        "step": "Configurar PyInstaller para empaquetado"
+      },
+      {
+        "estimated_time": "1h",
+        "status": "todo",
+        "step": "Crear AppImage desde bundle PyInstaller"
+      },
+      {
+        "estimated_time": "1h",
+        "status": "todo",
+        "step": "Automatizar proceso con script build"
+      }
+    ]
+  },
+  "links": {
+    "designs": [],
+    "docs": [],
+    "runs": [],
+    "tickets": []
+  },
+  "meta": {
+    "author": "agent_code",
+    "date": "2025-07-18T23:00:00Z",
+    "project": "spotlight_linux",
+    "status": "todo",
+    "task_id": "TASK_20250718_230000"
+  },
+  "next_actions": [
+    "Instalar PyInstaller en entorno virtual",
+    "Configurar spec file para incluir dependencias Qt",
+    "Generar primer ejecutable autocontenido"
+  ],
+  "open_questions": [
+    "¿Tamaño final del AppImage será aceptable?",
+    "¿Rendimiento de startup será satisfactorio?"
+  ],
+  "problem": {
+    "business_goal": "Lograr distribución universal sin dependencias externas manteniendo diseño moderno",
+    "constraints": [
+      "Mantener código PyQt6 existente",
+      "Cero configuración para usuarios",
+      "Funcionar en múltiples distribuciones Linux"
+    ],
+    "user_request": "Solucionar problema de dependencias PyQt6 para distribución sostenible"
+  },
+  "schema_version": "1.0.0",
+  "scope": {
+    "components": [
+      "Sistema de empaquetado",
+      "PyInstaller",
+      "AppImage",
+      "Build automation"
+    ],
+    "files": [
+      "main.py",
+      "requirements.txt",
+      "build.sh",
+      "pyinstaller.spec"
+    ]
+  },
+  "strategies_tried": [
+    {
+      "outcome": "Fallido - dependencias externas",
+      "reason_for_failure": "Requiere libxcb-cursor0 del sistema",
+      "strategy": "Distribución directa PyQt6"
+    }
+  ]
+}

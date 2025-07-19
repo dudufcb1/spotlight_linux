@@ -1,0 +1,90 @@
+{
+  "analysis": {
+    "hypotheses": [
+      "Mejor parsing de .desktop mejorará detección de aplicaciones",
+      "Comandos del sistema añadirán utilidad práctica"
+    ],
+    "root_cause": "Necesidad de mejorar capacidades de ejecución y utilidad práctica",
+    "tradeoffs": [
+      "Complejidad adicional vs funcionalidad mejorada",
+      "Tiempo de indexación vs cantidad de comandos"
+    ]
+  },
+  "experiments": [],
+  "implementation_plan": {
+    "md_reference": "docs/memory/TASK_20250719_030000.md",
+    "steps": [
+      {
+        "estimated_time": "45min",
+        "status": "todo",
+        "step": "Implementar parser de aplicaciones .desktop"
+      },
+      {
+        "estimated_time": "30min",
+        "status": "todo",
+        "step": "Añadir comandos del sistema en PATH"
+      },
+      {
+        "estimated_time": "30min",
+        "status": "todo",
+        "step": "Crear acciones contextuales por tipo"
+      },
+      {
+        "estimated_time": "30min",
+        "status": "todo",
+        "step": "Integrar comandos útiles internos"
+      },
+      {
+        "estimated_time": "15min",
+        "status": "todo",
+        "step": "Mejorar UX y error handling"
+      }
+    ]
+  },
+  "links": {
+    "designs": [],
+    "docs": [],
+    "runs": [],
+    "tickets": []
+  },
+  "meta": {
+    "author": "agent_code",
+    "date": "2025-07-19T03:00:00Z",
+    "project": "spotlight_linux",
+    "status": "doing",
+    "task_id": "TASK_20250719_030000"
+  },
+  "next_actions": [
+    "Crear parser de archivos .desktop",
+    "Implementar búsqueda en PATH",
+    "Añadir acciones contextuales"
+  ],
+  "open_questions": [
+    "¿Qué comandos internos son más útiles?",
+    "¿Cómo mostrar acciones contextuales en UI?"
+  ],
+  "problem": {
+    "business_goal": "Mejorar capacidades de ejecución y utilidad práctica de la aplicación",
+    "constraints": [
+      "Mantener simplicidad de UI",
+      "Performance de búsqueda rápida",
+      "Compatibilidad con diferentes entornos"
+    ],
+    "user_request": "Continuar con Fase 3: Ejecución avanzada de archivos y aplicaciones"
+  },
+  "schema_version": "1.0.0",
+  "scope": {
+    "components": [
+      "Parser de aplicaciones",
+      "Comandos del sistema",
+      "Acciones contextuales",
+      "Comandos integrados"
+    ],
+    "files": [
+      "search_engine.py",
+      "main.py",
+      "app_parser.py"
+    ]
+  },
+  "strategies_tried": []
+}

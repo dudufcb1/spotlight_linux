@@ -1,0 +1,19 @@
+# Spotlight Linux - Requisitos del Sistema (PyQt6)
+
+# GUI Framework principal
+PyQt6>=6.6.0
+
+# Hotkeys globales
+pynput>=1.7.6
+
+# IA - Gemini Integration
+google-generativeai>=0.3.0
+
+# Renderizado de Markdown (opcional)
+markdown>=3.5.0
+
+# Utilidades del sistema básicas
+psutil>=5.9.0
+
+# Encriptación para configuración segura
+cryptography>=41.0.0

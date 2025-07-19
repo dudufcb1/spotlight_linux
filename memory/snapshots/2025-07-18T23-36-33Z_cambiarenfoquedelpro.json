@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0.0",
+  "meta": {
+    "date": "2025-07-19T04:00:00Z",
+    "project": "spotlight_linux",
+    "author": "github_copilot",
+    "task_id": "TASK_20250719_040000",
+    "status": "todo"
+  },
+  "scope": {
+    "files": [
+      "main.py",
+      "main_tkinter.py",
+      "search_engine.py",
+      "data_models.py"
+    ],
+    "components": [
+      "Interfaz de usuario",
+      "Motor de búsqueda/IA",
+      "Modelos de datos",
+      "Sistema de ejecución"
+    ]
+  },
+  "problem": {
+    "user_request": "Cambiar enfoque del proyecto: dejar de lado búsqueda de archivos/aplicaciones y centrarse en MVP de inteligencia artificial para spotlight",
+    "business_goal": "Desarrollar un MVP funcional centrado en capacidades de IA que aporte valor inmediato al usuario",
+    "constraints": [
+      "Mantener base de código existente donde sea posible",
+      "Usar tecnologías ya disponibles",
+      "Enfoque en MVP simple y funcional"
+    ]
+  },
+  "analysis": {
+    "root_cause": "Problemas persistentes con búsqueda y ejecución de archivos/aplicaciones han generado complejidad excesiva",
+    "hypotheses": [
+      "Un enfoque de IA puede aportar más valor con menos complejidad",
+      "La funcionalidad actual requiere demasiado mantenimiento",
+      "MVP de IA puede ser más atractivo para usuarios"
+    ],
+    "tradeoffs": [
+      "Simplicidad vs funcionalidad completa",
+      "Velocidad de desarrollo vs características avanzadas",
+      "Estabilidad vs innovación"
+    ]
+  },
+  "implementation_plan": {
+    "steps": [
+      {
+        "step": "Analizar arquitectura actual",
+        "status": "todo",
+        "estimated_time": "30min"
+      },
+      {
+        "step": "Definir funcionalidades específicas de IA",
+        "status": "todo",
+        "estimated_time": "45min"
+      },
+      {
+        "step": "Simplificar interfaz tkinter",
+        "status": "todo",
+        "estimated_time": "1h"
+      },
+      {
+        "step": "Refactorizar search_engine para IA",
+        "status": "todo",
+        "estimated_time": "2h"
+      },
+      {
+        "step": "Implementar funciones básicas de IA",
+        "status": "todo",
+        "estimated_time": "3h"
+      },
+      {
+        "step": "Crear sistema de respuestas inteligentes",
+        "status": "todo",
+        "estimated_time": "2h"
+      },
+      {
+        "step": "Testear MVP básico",
+        "status": "todo",
+        "estimated_time": "1h"
+      }
+    ],
+    "md_reference": "docs/memory/TASK_20250719_040000.md"
+  },
+  "experiments": [],
+  "strategies_tried": [],
+  "open_questions": [
+    "¿Qué funcionalidades específicas de IA se requieren en el MVP?",
+    "¿Se mantiene la interfaz tkinter o se cambia?",
+    "¿Qué tipo de interacciones de IA se priorizarán?",
+    "¿Qué bibliotecas de IA usar (local vs API)?"
+  ],
+  "next_actions": [
+    "Consultar con líder sobre funcionalidades específicas",
+    "Analizar código actual para identificar componentes reutilizables",
+    "Definir arquitectura del MVP de IA"
+  ],
+  "links": {
+    "docs": [],
+    "tickets": [],
+    "designs": [],
+    "runs": []
+  }
+}
