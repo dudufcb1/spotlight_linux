@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Spotlight Linux
-Comment=Herramienta de búsqueda rápida para Linux
-Exec=spotlight-linux
-Icon=spotlight-linux
-Categories=Utility;
-StartupNotify=true
