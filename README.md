@@ -110,34 +110,7 @@ python main.py
 2. **Búsqueda de Archivos**: Escribir nombre de archivo
 3. **Comandos del Sistema**: Usar comandos integrados
 
-## 🏗️ Arquitectura del Proyecto
 
-```
-spotlight_linux/
-├── 📁 Core Application
-│   ├── main.py                 # Aplicación principal PyQt6 + UI
-│   ├── ai_engine.py           # Motor de IA con Gemini
-│   ├── search_engine.py       # Búsqueda de archivos/apps
-│   ├── config.py              # Gestión de configuración
-│   └── preferences.py         # Panel de preferencias
-├── 📁 Data & Models
-│   ├── data_models.py         # Modelos de datos
-│   ├── app_parser.py          # Parser de aplicaciones
-│   └── integrated_commands.py # Comandos del sistema
-├── 📁 Installation & Config
-│   ├── install_system.sh      # Instalador automático
-│   ├── uninstall_system.sh    # Desinstalador
-│   ├── requirements.txt       # Dependencias Python
-│   └── spotlight.spec         # Configuración PyInstaller
-├── 📁 Distribution
-│   ├── AppDir/                # Estructura AppImage
-│   ├── dist/                  # Ejecutables compilados
-│   └── spotlight-linux.desktop # Archivo desktop
-└── 📁 Documentation
-    ├── README.md              # Esta documentación
-    ├── docs/memory/           # Memoria del proyecto
-    └── tools/                 # Herramientas de desarrollo
-```
 
 ## 🔧 Solución de Problemas
 
