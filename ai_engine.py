@@ -17,6 +17,9 @@ try:
 except ImportError:
     HAS_GEMINI = False
 
+# Importar config_manager para acceder a configuración del usuario
+from config import config_manager
+
 @dataclass
 class AIResponse:
     """Respuesta de la IA con metadatos"""
@@ -72,6 +75,7 @@ class AIEngine:
         self.grounding_enabled = grounding_enabled
         self.client = None
         self.model_name = None
+        self.system_context = ""
         self.is_initialized = False
         self.logger = logging.getLogger(__name__)
         
@@ -107,8 +111,13 @@ class AIEngine:
             self.client = genai.Client(api_key=self.api_key)
             # Definir modelo a usar
             self.model_name = 'gemini-2.5-flash-lite-preview-06-17'
+
+            # Obtener información del sistema operativo
+            self.system_context = self._get_system_context()
+
             self.is_initialized = True
             self.logger.info("Motor AI inicializado correctamente con Gemini")
+            self.logger.info(f"Contexto del sistema detectado: {self.system_context[:100]}...")
         except Exception as e:
             self.logger.error(f"Error inicializando Gemini: {e}")
             self.is_initialized = False
@@ -146,12 +155,10 @@ class AIEngine:
             # Logging detallado para debugging
             self.logger.info(f"🔍 [DEBUG] Grounding enabled: {self.grounding_enabled}")
             
-            # Preparar prompt base
-            prompt = f"Usuario: {query}"
-            if context:
-                prompt = f"Contexto: {context}\n\n{prompt}"
-            
-            self.logger.info(f"📤 [DEBUG] Prompt enviado: {prompt}")
+            # Construir prompt personalizado con configuración del usuario
+            prompt = self._build_conversation_prompt(query, context, conversation_history, self.grounding_enabled)
+
+            self.logger.info(f"📤 [DEBUG] Prompt enviado: {prompt[:200]}...")
             
             if self.grounding_enabled:
                 # Modo GROUNDING: respuesta natural usando tools y config avanzada
@@ -287,6 +294,119 @@ class AIEngine:
             "has_api_key": bool(self.api_key),
             "model_name": "gemini-2.5-flash-lite-preview-06-17" if self.is_initialized else None
         }
+
+    def _build_conversation_prompt(self, query: str, context: Optional[str], conversation_history: Optional[List[Dict]], grounding_mode: bool) -> str:
+        """Construir prompt personalizado con configuración del usuario"""
+        prompt_parts = []
+
+        # Obtener configuración del usuario
+        user_name = config_manager.get_user_name()
+        user_tone = config_manager.get_user_tone()
+
+        # Agregar contexto del sistema automáticamente
+        if hasattr(self, 'system_context') and self.system_context:
+            prompt_parts.append(self.system_context)
+
+        # Agregar contexto adicional si existe
+        if context:
+            prompt_parts.append(f"Contexto adicional: {context}")
+
+        # Agregar historial de conversación
+        if conversation_history:
+            prompt_parts.append("Historial de conversación:")
+            for msg in conversation_history[-10:]:  # Solo últimos 10 mensajes
+                role = msg.get("role", "")
+                message = msg.get("message", "")
+                if role and message:
+                    prompt_parts.append(f"{role}: {message}")
+
+        # Instrucciones personalizadas según configuración del usuario
+        personality_instruction = self._build_personality_instruction(user_name, user_tone, grounding_mode)
+        prompt_parts.append(personality_instruction)
+
+        # Agregar consulta actual con nombre del usuario
+        prompt_parts.append(f"{user_name}: {query}")
+
+        return "\n\n".join(prompt_parts)
+
+    def _build_personality_instruction(self, user_name: str, user_tone: str, grounding_mode: bool) -> str:
+        """Construir instrucciones de personalidad basadas en configuración"""
+        base_instruction = f"""
+Instrucciones de personalidad:
+- El usuario se llama {user_name}
+- Usa un tono {user_tone} en tus respuestas
+- Dirígete al usuario por su nombre cuando sea apropiado
+"""
+
+        if grounding_mode:
+            mode_instruction = """
+Modo de respuesta: Proporciona una respuesta natural, conversacional y completa.
+Puedes buscar información actualizada si es necesario.
+Usa markdown para formatear la respuesta si es apropiado.
+"""
+        else:
+            mode_instruction = """
+Modo de respuesta: Proporciona una respuesta estructurada en formato JSON con los siguientes campos:
+- "general_answer": Respuesta general personalizada para el usuario (string)
+- "suggested_commands": Array de comandos de terminal útiles para Linux (array de strings)
+- "suggested_code_snippets": Array de snippets de código relevantes (array de strings)
+
+Solo usa tus conocimientos internos, no busques información online.
+Enfócate en comandos prácticos y código útil para Linux.
+"""
+
+        return base_instruction + mode_instruction
+
+    def _get_system_context(self) -> str:
+        """Obtener información del sistema operativo para contexto automático"""
+        try:
+            # Leer /etc/os-release
+            with open('/etc/os-release', 'r') as f:
+                os_release_content = f.read()
+
+            # Parsear información relevante
+            os_info = {}
+            for line in os_release_content.strip().split('\n'):
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    # Remover comillas si existen
+                    value = value.strip('"\'')
+                    os_info[key] = value
+
+            # Construir contexto del sistema
+            system_context_parts = []
+            system_context_parts.append("=== INFORMACIÓN DEL SISTEMA ===")
+
+            # Información básica del OS
+            if 'PRETTY_NAME' in os_info:
+                system_context_parts.append(f"Sistema Operativo: {os_info['PRETTY_NAME']}")
+            elif 'NAME' in os_info and 'VERSION' in os_info:
+                system_context_parts.append(f"Sistema Operativo: {os_info['NAME']} {os_info['VERSION']}")
+
+            if 'ID' in os_info:
+                system_context_parts.append(f"Distribución: {os_info['ID']}")
+
+            if 'VERSION_ID' in os_info:
+                system_context_parts.append(f"Versión: {os_info['VERSION_ID']}")
+
+            if 'ID_LIKE' in os_info:
+                system_context_parts.append(f"Basado en: {os_info['ID_LIKE']}")
+
+            # Información adicional del sistema
+            try:
+                import platform
+                system_context_parts.append(f"Arquitectura: {platform.machine()}")
+                system_context_parts.append(f"Kernel: {platform.release()}")
+            except:
+                pass
+
+            system_context_parts.append("=== FIN INFORMACIÓN DEL SISTEMA ===")
+
+            return "\n".join(system_context_parts)
+
+        except Exception as e:
+            self.logger.warning(f"No se pudo obtener información del sistema: {e}")
+            return "Sistema: Linux (información no disponible)"
 
 # Crear instancia global del motor de IA
 # Se inicializa sin grounding por defecto, se actualiza dinámicamente desde main.py

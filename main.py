@@ -8,9 +8,12 @@ import os
 import logging
 import signal
 import threading
+import fcntl
+import atexit
+from pathlib import Path
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLineEdit, QLabel, QFrame, QTextEdit, QPushButton, QGroupBox, QCheckBox
+    QLineEdit, QLabel, QFrame, QTextEdit, QPushButton, QGroupBox, QCheckBox, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
 from PyQt6.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QKeySequence, QShortcut, QClipboard
@@ -42,6 +45,130 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
+
+class SingleInstanceLock:
+    """Sistema de candado para evitar múltiples instancias"""
+
+    def __init__(self, app_name="spotlight-linux"):
+        self.app_name = app_name
+        self.lock_file_path = Path.home() / ".config" / app_name / f"{app_name}.lock"
+        self.lock_file = None
+        self.is_locked = False
+
+        # Asegurar que el directorio existe
+        self.lock_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def acquire_lock(self) -> bool:
+        """Intentar adquirir el lock. Retorna True si exitoso, False si ya hay otra instancia"""
+        try:
+            # Abrir archivo de lock
+            self.lock_file = open(self.lock_file_path, 'w')
+
+            # Intentar lock exclusivo no-bloqueante
+            fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+            # Escribir PID al archivo
+            self.lock_file.write(str(os.getpid()))
+            self.lock_file.flush()
+
+            self.is_locked = True
+
+            # Registrar cleanup al salir
+            atexit.register(self.release_lock)
+
+            logger.info(f"Lock adquirido exitosamente: {self.lock_file_path}")
+            return True
+
+        except (IOError, OSError) as e:
+            # Lock ya está en uso por otra instancia
+            if self.lock_file:
+                self.lock_file.close()
+                self.lock_file = None
+
+            logger.info(f"No se pudo adquirir lock - otra instancia ejecutándose: {e}")
+            return False
+
+    def release_lock(self):
+        """Liberar el lock"""
+        if self.is_locked and self.lock_file:
+            try:
+                fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
+                self.lock_file.close()
+
+                # Eliminar archivo de lock
+                if self.lock_file_path.exists():
+                    self.lock_file_path.unlink()
+
+                logger.info("Lock liberado exitosamente")
+            except Exception as e:
+                logger.warning(f"Error liberando lock: {e}")
+            finally:
+                self.is_locked = False
+                self.lock_file = None
+
+    def get_running_pid(self) -> int:
+        """Obtener PID de la instancia que tiene el lock"""
+        try:
+            if self.lock_file_path.exists():
+                with open(self.lock_file_path, 'r') as f:
+                    return int(f.read().strip())
+        except (ValueError, IOError):
+            pass
+        return 0
+
+def show_already_running_alert():
+    """Mostrar alert cuando ya hay una instancia ejecutándose"""
+    app = QApplication(sys.argv)
+
+    # Crear mensaje de alerta
+    msg_box = QMessageBox()
+    msg_box.setWindowTitle("Spotlight Linux - Ya está ejecutándose")
+    msg_box.setIcon(QMessageBox.Icon.Information)
+    msg_box.setText("🔍 Spotlight Linux ya está ejecutándose")
+    msg_box.setInformativeText(
+        "Ya hay una instancia de Spotlight Linux activa en segundo plano.\n\n"
+        "💡 Para mostrar la ventana, usa el atajo de teclado:\n"
+        "   Ctrl+Alt+Space\n\n"
+        "O presiona Ctrl+Alt+P desde cualquier lugar del sistema."
+    )
+    msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+    msg_box.setDefaultButton(QMessageBox.StandardButton.Ok)
+
+    # Configurar estilo del mensaje
+    msg_box.setStyleSheet("""
+        QMessageBox {
+            background-color: #2b2b2b;
+            color: #ffffff;
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+        }
+        QMessageBox QLabel {
+            color: #ffffff;
+            font-size: 14px;
+            padding: 10px;
+        }
+        QPushButton {
+            background-color: #0078d4;
+            border: 1px solid #106ebe;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            padding: 8px 16px;
+            min-width: 80px;
+        }
+        QPushButton:hover {
+            background-color: #106ebe;
+        }
+        QPushButton:pressed {
+            background-color: #005a9e;
+        }
+    """)
+
+    # Mostrar el mensaje
+    msg_box.exec()
+
+    # Salir de la aplicación temporal
+    app.quit()
+    sys.exit(0)
 
 class AIThread(QThread):
     """Thread para consultas IA sin bloquear la UI"""
@@ -166,24 +293,8 @@ class SpotlightWindow(QMainWindow):
         self.response_area.setPlainText("Escribe tu consulta y presiona Enter...")
         main_layout.addWidget(self.response_area)
 
-        # Área de code snippets (inicialmente oculta)
-        self.snippets_frame = QFrame()
-        self.snippets_layout = QVBoxLayout(self.snippets_frame)
-        self.snippets_layout.setContentsMargins(10, 10, 10, 10)
-        self.snippets_layout.setSpacing(8)
-        
-        # Título de snippets
-        self.snippets_title = QLabel("📋 Comandos y Código")
-        self.snippets_title.setFont(QFont("Inter", 11, QFont.Weight.Bold))
-        self.snippets_layout.addWidget(self.snippets_title)
-        
-        # Contenedor para los snippets individuales
-        self.snippets_container = QVBoxLayout()
-        self.snippets_layout.addLayout(self.snippets_container)
-        
-        # Ocultar por defecto
-        self.snippets_frame.setVisible(False)
-        main_layout.addWidget(self.snippets_frame)
+        # Los snippets ahora se generan dinámicamente dentro del response_area
+        # No necesitamos un frame separado que siempre ocupe espacio
 
         # Label de estado con spinner
         self.status_label = QLabel("Listo para consultar IA")
@@ -314,6 +425,9 @@ class SpotlightWindow(QMainWindow):
         self.search_input.clear()
         self.response_area.setPlainText("Escribe tu consulta y presiona Enter...")
         self.status_label.setText("Listo para consultar IA")
+
+        # Los snippets se limpian automáticamente al cambiar el HTML
+
         # Detener spinner si está activo
         if self.spinner_timer.isActive():
             self.spinner_timer.stop()
@@ -373,101 +487,106 @@ class SpotlightWindow(QMainWindow):
         config_manager.add_conversation_message("IA", response.content)
         config_manager.save_config()
 
-        # Detectar si es markdown y renderizar apropiadamente
-        formatted_response = f"🤖 IA: {response.content}"
+        # Construir respuesta completa con snippets integrados
+        full_response = self.build_response_with_snippets(response)
 
-        if self._detect_markdown(response.content):
-            # Renderizar como markdown
-            self.response_area.setMarkdown(formatted_response)
-        else:
-            # Mostrar como texto plano
-            self.response_area.setPlainText(formatted_response)
-
-        # Manejar code snippets si es respuesta estructurada
-        if response.is_structured and (response.suggested_commands or response.suggested_code_snippets):
-            self.show_code_snippets(response.suggested_commands or [], response.suggested_code_snippets or [])
-        else:
-            # Ocultar snippets si no hay
-            self.snippets_frame.setVisible(False)
+        # Siempre usar HTML para tener control completo del formato
+        self.response_area.setHtml(full_response)
 
         # Auto-ocultar después de un tiempo (opcional)
         # QTimer.singleShot(10000, self.hide_window)
 
-    def show_code_snippets(self, commands, code_snippets):
-        """Mostrar code snippets con botones de copia"""
-        # Limpiar snippets anteriores
-        self.clear_snippets()
-        
+    def build_response_with_snippets(self, response):
+        """Construye la respuesta completa con snippets integrados dinámicamente"""
+        # Comenzar con la respuesta base
+        html_content = f"""
+        <div style="font-family: 'Inter', sans-serif; color: #e5e7eb; line-height: 1.6;">
+            <div style="margin-bottom: 20px;">
+                <strong style="color: #60a5fa;">🤖 IA:</strong> {self.format_response_content(response.content)}
+            </div>
+        """
+
+        # Agregar snippets si existen
+        if response.is_structured and (response.suggested_commands or response.suggested_code_snippets):
+            html_content += self.build_snippets_html(response.suggested_commands or [], response.suggested_code_snippets or [])
+
+        html_content += "</div>"
+        return html_content
+
+    def format_response_content(self, content):
+        """Formatea el contenido de la respuesta preservando markdown básico"""
+        # Escapar HTML pero preservar algunos elementos markdown
+        import html
+        content = html.escape(content)
+
+        # Convertir markdown básico a HTML
+        content = content.replace('**', '<strong>').replace('**', '</strong>')
+        content = content.replace('*', '<em>').replace('*', '</em>')
+        content = content.replace('\n', '<br>')
+
+        # Manejar bloques de código
+        if '```' in content:
+            parts = content.split('```')
+            for i in range(1, len(parts), 2):  # Cada parte impar es código
+                parts[i] = f'<pre style="background-color: #1f2937; padding: 10px; border-radius: 6px; margin: 10px 0; overflow-x: auto;"><code>{parts[i]}</code></pre>'
+            content = ''.join(parts)
+
+        return content
+
+    def build_snippets_html(self, commands, code_snippets):
+        """Construye el HTML para los snippets integrados"""
+        snippets_html = """
+        <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid #374151;">
+            <h3 style="color: #fbbf24; margin-bottom: 15px; font-size: 16px;">
+                📋 Comandos y Código Sugeridos
+            </h3>
+        """
+
         # Agregar comandos
         for i, command in enumerate(commands):
             if command.strip():
-                self.add_snippet_item(f"💻 Comando {i+1}", command, "comando")
-        
+                snippets_html += self.build_snippet_item_html(f"💻 Comando {i+1}", command, "command", i)
+
         # Agregar código
         for i, code in enumerate(code_snippets):
             if code.strip():
-                self.add_snippet_item(f"📝 Código {i+1}", code, "codigo")
-        
-        # Mostrar frame de snippets
-        self.snippets_frame.setVisible(True)
-    
-    def clear_snippets(self):
-        """Limpiar todos los snippets del contenedor"""
-        while self.snippets_container.count():
-            child = self.snippets_container.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-    
-    def add_snippet_item(self, label_text, content, snippet_type):
-        """Agregar un item de snippet con botón copy"""
-        # Crear frame para el snippet
-        snippet_frame = QFrame()
-        snippet_frame.setFrameStyle(QFrame.Shape.StyledPanel)
-        snippet_frame.setStyleSheet("""
-            QFrame {
-                border: 1px solid #4b5563;
+                snippets_html += self.build_snippet_item_html(f"📝 Código {i+1}", code, "code", len(commands) + i)
+
+        snippets_html += "</div>"
+        return snippets_html
+
+    def build_snippet_item_html(self, title, content, snippet_type, index):
+        """Construye el HTML para un snippet individual"""
+        # Escapar el contenido para HTML
+        import html
+        escaped_content = html.escape(content)
+
+        return f"""
+        <div style="margin-bottom: 15px; background-color: #1f2937; border: 1px solid #4b5563; border-radius: 8px; padding: 15px;" id="snippet-container-{index}">
+            <div style="margin-bottom: 10px;">
+                <strong style="color: #34d399; font-size: 14px;">{title}</strong>
+            </div>
+            <pre style="
+                background-color: #111827;
+                color: #e5e7eb;
+                padding: 12px;
                 border-radius: 6px;
-                background-color: #1f2937;
-                padding: 8px;
-                margin: 2px;
-            }
-        """)
-        
-        # Layout horizontal para label + botón
-        snippet_layout = QHBoxLayout(snippet_frame)
-        snippet_layout.setContentsMargins(8, 6, 8, 6)
-        
-        # Label con el contenido
-        content_label = QLabel(f"{label_text}: {content}")
-        content_label.setWordWrap(True)
-        content_label.setFont(QFont("Courier", 10))
-        content_label.setStyleSheet("color: #e5e7eb; background: transparent; border: none;")
-        snippet_layout.addWidget(content_label)
-        
-        # Botón copiar
-        copy_button = QPushButton("📋 Copiar")
-        copy_button.setFixedSize(80, 30)
-        copy_button.setStyleSheet("""
-            QPushButton {
-                background-color: #3b82f6;
-                border: 1px solid #2563eb;
-                border-radius: 4px;
-                color: white;
-                font-weight: bold;
-                font-size: 10px;
-            }
-            QPushButton:hover {
-                background-color: #2563eb;
-            }
-            QPushButton:pressed {
-                background-color: #1d4ed8;
-            }
-        """)
-        copy_button.clicked.connect(lambda: self.copy_to_clipboard(content))
-        snippet_layout.addWidget(copy_button)
-        
-        # Agregar al contenedor
-        self.snippets_container.addWidget(snippet_frame)
+                margin: 0;
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 13px;
+                line-height: 1.4;
+                overflow-x: auto;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                cursor: text;
+                user-select: all;
+            " id="snippet-{index}">{escaped_content}</pre>
+        </div>
+        """
+
+    # Métodos de botones de copiar eliminados - se usa click derecho para copiar
+
+    # Métodos antiguos de snippets eliminados - ahora se generan dinámicamente
     
     def copy_to_clipboard(self, text):
         """Copiar texto al clipboard"""
@@ -588,6 +707,17 @@ class SpotlightWindow(QMainWindow):
 
 def main():
     """Función principal"""
+    # Verificar si ya hay una instancia ejecutándose
+    lock = SingleInstanceLock()
+
+    if not lock.acquire_lock():
+        # Ya hay una instancia ejecutándose
+        logger.info("Otra instancia de Spotlight Linux ya está ejecutándose")
+        show_already_running_alert()
+        return
+
+    logger.info("Lock adquirido - iniciando aplicación")
+
     app = QApplication(sys.argv)
 
     # Configurar aplicación
@@ -626,9 +756,13 @@ def main():
     logger.info("💡 Usa Ctrl+P para mostrar desde cualquier lugar")
 
     try:
-        sys.exit(app.exec())
+        exit_code = app.exec()
+        logger.info("Aplicación terminada normalmente")
+        lock.release_lock()
+        sys.exit(exit_code)
     except KeyboardInterrupt:
         logger.info("Aplicación cerrada por Ctrl+C")
+        lock.release_lock()
         sys.exit(0)
 
 if __name__ == "__main__":
