@@ -38,7 +38,7 @@ class AIEngine:
         from google import genai
         return genai.Client(api_key=self.api_key)
 
-    def _ask_grounding_mode(self, query: str) -> str:
+    def _ask_grounding_mode(self, prompt: str) -> str:
         from google import genai
         from google.genai import types
         import os
@@ -47,7 +47,7 @@ class AIEngine:
         contents = [
             types.Content(
                 role="user",
-                parts=[types.Part.from_text(text=query)],
+                parts=[types.Part.from_text(text=prompt)],
             ),
         ]
         tools = [
@@ -163,7 +163,7 @@ class AIEngine:
             if self.grounding_enabled:
                 # Modo GROUNDING: respuesta natural usando tools y config avanzada
                 self.logger.info("🌐 [DEBUG] Usando modo GROUNDING (tools y config avanzada)")
-                response_text = self._ask_grounding_mode(query)
+                response_text = self._ask_grounding_mode(prompt)
                 self.logger.info(f"📥 [DEBUG] Respuesta recibida (GROUNDING): {response_text}")
                 processing_time = time.time() - start_time
                 if response_text:
@@ -302,6 +302,13 @@ class AIEngine:
         # Obtener configuración del usuario
         user_name = config_manager.get_user_name()
         user_tone = config_manager.get_user_tone()
+
+        # Agregar fecha y hora actual (especialmente importante para grounding)
+        if grounding_mode:
+            from datetime import datetime
+            current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            prompt_parts.append(f"Fecha y hora actual: {current_datetime}")
+            prompt_parts.append("IMPORTANTE: Si la consulta requiere información actualizada, usa grounding para buscar datos recientes.")
 
         # Agregar contexto del sistema automáticamente
         if hasattr(self, 'system_context') and self.system_context:
