@@ -10,10 +10,10 @@ import signal
 import threading
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLineEdit, QLabel, QFrame, QTextEdit, QPushButton
+    QLineEdit, QLabel, QFrame, QTextEdit, QPushButton, QGroupBox, QCheckBox
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
-from PyQt6.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QKeySequence, QShortcut
+from PyQt6.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QKeySequence, QShortcut, QClipboard
 
 from ai_engine import ai_engine, AIResponse
 from config import config_manager
@@ -45,20 +45,21 @@ signal.signal(signal.SIGINT, signal_handler)
 
 class AIThread(QThread):
     """Thread para consultas IA sin bloquear la UI"""
-    response_ready = pyqtSignal(str)
+    response_ready = pyqtSignal(object)  # Cambiar a object para pasar AIResponse completo
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, query):
+    def __init__(self, query, conversation_history=None):
         super().__init__()
         self.query = query
+        self.conversation_history = conversation_history or []
 
     def run(self):
         """Ejecuta la consulta IA en background"""
         try:
-            # Usar el ai_engine real
-            response = ai_engine.ask_sync(self.query)
-            if response and response.success and response.content:
-                self.response_ready.emit(response.content)
+            # Usar el ai_engine real con historial
+            response = ai_engine.ask_sync(self.query, conversation_history=self.conversation_history)
+            if response and response.success:
+                self.response_ready.emit(response)  # Emitir objeto AIResponse completo
             else:
                 error_msg = response.error_message if response else "No se recibió respuesta de la IA"
                 self.error_occurred.emit(error_msg)
@@ -79,6 +80,12 @@ class SpotlightWindow(QMainWindow):
 
         # Verificar configuración inicial
         self.check_first_run()
+        
+        # Inicializar motor de IA con configuración actual
+        self.initialize_ai_engine()
+        
+        # Cargar estado inicial del grounding
+        self.load_grounding_state()
 
         # Ocultar ventana al inicio
         self.hide()
@@ -87,7 +94,7 @@ class SpotlightWindow(QMainWindow):
         """Inicializa la interfaz de usuario PyQt6"""
         # Configuración de la ventana
         self.setWindowTitle("Spotlight Linux")
-        self.setFixedSize(700, 500)
+        self.setFixedSize(700, 600)  # Incrementar altura para snippets
         
         # Configurar como ventana flotante sin decoraciones
         self.setWindowFlags(
@@ -118,6 +125,13 @@ class SpotlightWindow(QMainWindow):
 
         header_layout.addStretch()
 
+        # Botón escoba para limpiar contexto
+        self.clear_context_button = QPushButton("🧹")
+        self.clear_context_button.setFixedSize(32, 32)
+        self.clear_context_button.setToolTip("Limpiar historial de conversación")
+        self.clear_context_button.clicked.connect(self.clear_conversation_history)
+        header_layout.addWidget(self.clear_context_button)
+
         # Icono de preferencias
         self.preferences_button = QPushButton("⚙️")
         self.preferences_button.setFixedSize(32, 32)
@@ -127,19 +141,49 @@ class SpotlightWindow(QMainWindow):
 
         main_layout.addLayout(header_layout)
         
-        # Campo de búsqueda/consulta IA
+        # Campo de búsqueda/consulta IA con grounding toggle
+        input_layout = QHBoxLayout()
+        
         self.search_input = QLineEdit()
         self.update_placeholder_text()
         self.search_input.setFont(QFont("Inter", 16))
-        main_layout.addWidget(self.search_input)
+        input_layout.addWidget(self.search_input)
+        
+        # Checkbox de grounding
+        self.grounding_checkbox = QCheckBox("🌐")
+        self.grounding_checkbox.setToolTip("Grounding: Habilitar búsqueda en línea\n\n✅ Activado: La IA puede buscar información en internet\n❌ Desactivado: La IA proporciona comandos y código estructurado")
+        self.grounding_checkbox.setChecked(False)  # Unchecked por defecto
+        self.grounding_checkbox.stateChanged.connect(self.on_grounding_changed)
+        input_layout.addWidget(self.grounding_checkbox)
+        
+        main_layout.addLayout(input_layout)
 
         # Área de respuesta de IA con scroll y markdown
         self.response_area = QTextEdit()
         self.response_area.setFont(QFont("Inter", 12))
-        self.response_area.setMinimumHeight(300)
+        self.response_area.setMinimumHeight(250)
         self.response_area.setReadOnly(True)
         self.response_area.setPlainText("Escribe tu consulta y presiona Enter...")
         main_layout.addWidget(self.response_area)
+
+        # Área de code snippets (inicialmente oculta)
+        self.snippets_frame = QFrame()
+        self.snippets_layout = QVBoxLayout(self.snippets_frame)
+        self.snippets_layout.setContentsMargins(10, 10, 10, 10)
+        self.snippets_layout.setSpacing(8)
+        
+        # Título de snippets
+        self.snippets_title = QLabel("📋 Comandos y Código")
+        self.snippets_title.setFont(QFont("Inter", 11, QFont.Weight.Bold))
+        self.snippets_layout.addWidget(self.snippets_title)
+        
+        # Contenedor para los snippets individuales
+        self.snippets_container = QVBoxLayout()
+        self.snippets_layout.addLayout(self.snippets_container)
+        
+        # Ocultar por defecto
+        self.snippets_frame.setVisible(False)
+        main_layout.addWidget(self.snippets_frame)
 
         # Label de estado con spinner
         self.status_label = QLabel("Listo para consultar IA")
@@ -284,7 +328,13 @@ class SpotlightWindow(QMainWindow):
             self.status_label.setText("Escribe algo para consultar...")
         
     def query_ai(self, query):
-        """Consulta a la IA"""
+        """Consulta a la IA con memoria conversacional"""
+        # Agregar consulta del usuario al historial
+        config_manager.add_conversation_message("Usuario", query)
+        
+        # Obtener historial para contexto
+        conversation_history = config_manager.get_conversation_history()
+        
         self.ai_thinking = True
         self.response_area.setPlainText("🤖 Consultando IA...")
 
@@ -292,8 +342,8 @@ class SpotlightWindow(QMainWindow):
         self.spinner_index = 0
         self.spinner_timer.start(100)  # Actualizar cada 100ms
 
-        # Crear thread para consulta IA real
-        self.ai_thread = AIThread(query)
+        # Crear thread para consulta IA real con historial
+        self.ai_thread = AIThread(query, conversation_history)
         self.ai_thread.response_ready.connect(self.show_ai_response)
         self.ai_thread.error_occurred.connect(self.show_ai_error)
         self.ai_thread.start()
@@ -314,23 +364,122 @@ class SpotlightWindow(QMainWindow):
         return any(indicator in text for indicator in markdown_indicators)
 
     def show_ai_response(self, response):
-        """Muestra respuesta de la IA"""
+        """Muestra respuesta de la IA y la guarda en memoria"""
         self.ai_thinking = False
         self.spinner_timer.stop()
         self.status_label.setText("✅ Respuesta recibida")
 
-        # Detectar si es markdown y renderizar apropiadamente
-        formatted_response = f"🤖 IA: {response}"
+        # Guardar respuesta de IA en historial
+        config_manager.add_conversation_message("IA", response.content)
+        config_manager.save_config()
 
-        if self._detect_markdown(response):
+        # Detectar si es markdown y renderizar apropiadamente
+        formatted_response = f"🤖 IA: {response.content}"
+
+        if self._detect_markdown(response.content):
             # Renderizar como markdown
             self.response_area.setMarkdown(formatted_response)
         else:
             # Mostrar como texto plano
             self.response_area.setPlainText(formatted_response)
 
+        # Manejar code snippets si es respuesta estructurada
+        if response.is_structured and (response.suggested_commands or response.suggested_code_snippets):
+            self.show_code_snippets(response.suggested_commands or [], response.suggested_code_snippets or [])
+        else:
+            # Ocultar snippets si no hay
+            self.snippets_frame.setVisible(False)
+
         # Auto-ocultar después de un tiempo (opcional)
         # QTimer.singleShot(10000, self.hide_window)
+
+    def show_code_snippets(self, commands, code_snippets):
+        """Mostrar code snippets con botones de copia"""
+        # Limpiar snippets anteriores
+        self.clear_snippets()
+        
+        # Agregar comandos
+        for i, command in enumerate(commands):
+            if command.strip():
+                self.add_snippet_item(f"💻 Comando {i+1}", command, "comando")
+        
+        # Agregar código
+        for i, code in enumerate(code_snippets):
+            if code.strip():
+                self.add_snippet_item(f"📝 Código {i+1}", code, "codigo")
+        
+        # Mostrar frame de snippets
+        self.snippets_frame.setVisible(True)
+    
+    def clear_snippets(self):
+        """Limpiar todos los snippets del contenedor"""
+        while self.snippets_container.count():
+            child = self.snippets_container.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+    
+    def add_snippet_item(self, label_text, content, snippet_type):
+        """Agregar un item de snippet con botón copy"""
+        # Crear frame para el snippet
+        snippet_frame = QFrame()
+        snippet_frame.setFrameStyle(QFrame.Shape.StyledPanel)
+        snippet_frame.setStyleSheet("""
+            QFrame {
+                border: 1px solid #4b5563;
+                border-radius: 6px;
+                background-color: #1f2937;
+                padding: 8px;
+                margin: 2px;
+            }
+        """)
+        
+        # Layout horizontal para label + botón
+        snippet_layout = QHBoxLayout(snippet_frame)
+        snippet_layout.setContentsMargins(8, 6, 8, 6)
+        
+        # Label con el contenido
+        content_label = QLabel(f"{label_text}: {content}")
+        content_label.setWordWrap(True)
+        content_label.setFont(QFont("Courier", 10))
+        content_label.setStyleSheet("color: #e5e7eb; background: transparent; border: none;")
+        snippet_layout.addWidget(content_label)
+        
+        # Botón copiar
+        copy_button = QPushButton("📋 Copiar")
+        copy_button.setFixedSize(80, 30)
+        copy_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3b82f6;
+                border: 1px solid #2563eb;
+                border-radius: 4px;
+                color: white;
+                font-weight: bold;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background-color: #2563eb;
+            }
+            QPushButton:pressed {
+                background-color: #1d4ed8;
+            }
+        """)
+        copy_button.clicked.connect(lambda: self.copy_to_clipboard(content))
+        snippet_layout.addWidget(copy_button)
+        
+        # Agregar al contenedor
+        self.snippets_container.addWidget(snippet_frame)
+    
+    def copy_to_clipboard(self, text):
+        """Copiar texto al clipboard"""
+        try:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self.status_label.setText(f"📋 Copiado: {text[:30]}...")
+            # Restaurar estado después de 2 segundos
+            QTimer.singleShot(2000, lambda: self.status_label.setText("✅ Respuesta recibida"))
+        except Exception as e:
+            logger.error(f"Error copiando al clipboard: {e}")
+            self.status_label.setText("❌ Error copiando al clipboard")
 
     def show_ai_error(self, error_message):
         """Muestra error de la IA"""
@@ -345,6 +494,54 @@ class SpotlightWindow(QMainWindow):
         """Actualizar texto del placeholder con el nombre del usuario"""
         user_name = config_manager.get_user_name()
         self.search_input.setPlaceholderText(f"¡Hola {user_name}! ¿qué necesitas? (Presiona Enter para consultar)")
+        
+    def on_grounding_changed(self, state):
+        """Manejar cambio en estado de grounding"""
+        enabled = state == Qt.CheckState.Checked.value
+        config_manager.set_grounding_enabled(enabled)
+        config_manager.save_config()
+        
+        # Actualizar motor de IA
+        if hasattr(ai_engine, 'grounding_enabled'):
+            ai_engine.grounding_enabled = enabled
+            
+        # Actualizar tooltip
+        if enabled:
+            self.grounding_checkbox.setToolTip("🌐 Grounding activado: La IA puede buscar información en internet")
+        else:
+            self.grounding_checkbox.setToolTip("📋 Grounding desactivado: La IA proporcionará comandos y código estructurado")
+            
+        logger.info(f"Grounding {'habilitado' if enabled else 'deshabilitado'}")
+        
+    def load_grounding_state(self):
+        """Cargar estado inicial del grounding desde configuración"""
+        grounding_enabled = config_manager.get_grounding_enabled()
+        self.grounding_checkbox.setChecked(grounding_enabled)
+
+    def initialize_ai_engine(self):
+        """Inicializar motor de IA con configuración actual"""
+        try:
+            api_key = config_manager.get_api_key()
+            grounding_enabled = config_manager.get_grounding_enabled()
+            
+            if api_key:
+                ai_engine.api_key = api_key
+                ai_engine.grounding_enabled = grounding_enabled
+                ai_engine._initialize_gemini()
+                logger.info(f"Motor de IA inicializado - Grounding: {grounding_enabled}")
+        except Exception as e:
+            logger.error(f"Error inicializando motor de IA: {e}")
+
+    def clear_conversation_history(self):
+        """Limpiar historial de conversación"""
+        try:
+            config_manager.clear_conversation_history()
+            config_manager.save_config()
+            self.status_label.setText("🧹 Historial de conversación limpiado")
+            logger.info("Historial de conversación limpiado")
+        except Exception as e:
+            logger.error(f"Error limpiando historial: {e}")
+            self.status_label.setText("❌ Error limpiando historial")
 
     def show_preferences(self):
         """Mostrar ventana de preferencias"""
@@ -360,14 +557,17 @@ class SpotlightWindow(QMainWindow):
         # Actualizar placeholder con nuevo nombre
         self.update_placeholder_text()
 
-        # Reinicializar motor de IA con nueva API key
+        # Reinicializar motor de IA con nueva configuración
         try:
             api_key = config_manager.get_api_key()
+            grounding_enabled = config_manager.get_grounding_enabled()
+            
             if api_key:
-                # Actualizar API key en ai_engine
+                # Actualizar API key y grounding en ai_engine
                 ai_engine.api_key = api_key
+                ai_engine.grounding_enabled = grounding_enabled
                 ai_engine._initialize_gemini()
-                logger.info("Motor de IA actualizado con nueva configuración")
+                logger.info(f"Motor de IA actualizado - Grounding: {grounding_enabled}")
             else:
                 logger.warning("No hay API key configurada")
         except Exception as e:

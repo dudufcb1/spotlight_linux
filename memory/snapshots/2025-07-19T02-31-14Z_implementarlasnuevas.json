@@ -1,0 +1,102 @@
+{
+  "analysis": {
+    "hypotheses": [
+      "El usuario necesita control sobre cuándo buscar información online",
+      "Los comandos y código deben ser fácilmente copiables",
+      "La conversación debe mantener contexto entre interacciones"
+    ],
+    "root_cause": "Falta de control usuario sobre comportamiento de IA y ausencia de herramientas de productividad",
+    "tradeoffs": [
+      "Grounding vs estructura de datos",
+      "Memoria extensa vs performance",
+      "UI compleja vs simplicidad"
+    ]
+  },
+  "experiments": [],
+  "implementation_plan": {
+    "md_reference": "docs/memory/NEW_FEATURES_IMPLEMENTATION_20250719_023000.md",
+    "steps": [
+      {
+        "estimated_time": "45min",
+        "status": "todo",
+        "step": "Implementar toggle de grounding en preferences y config"
+      },
+      {
+        "estimated_time": "1h",
+        "status": "todo",
+        "step": "Modificar ai_engine.py para manejar dos modos de operación"
+      },
+      {
+        "estimated_time": "1h30min",
+        "status": "todo",
+        "step": "Crear componentes UI para code snippets con botones copy"
+      },
+      {
+        "estimated_time": "45min",
+        "status": "todo",
+        "step": "Implementar sistema de memoria conversacional"
+      },
+      {
+        "estimated_time": "30min",
+        "status": "todo",
+        "step": "Agregar botón escoba para limpiar contexto"
+      },
+      {
+        "estimated_time": "30min",
+        "status": "todo",
+        "step": "Integrar todo en la UI principal y testing"
+      }
+    ]
+  },
+  "links": {
+    "designs": [],
+    "docs": [
+      "NUEVAS_CARACTERISTICAS.MD"
+    ],
+    "runs": [],
+    "tickets": []
+  },
+  "meta": {
+    "author": "agent_code",
+    "date": "2025-07-19T02:30:00Z",
+    "project": "spotlight_linux",
+    "status": "todo",
+    "task_id": "NEW_FEATURES_IMPLEMENTATION_20250719_023000"
+  },
+  "next_actions": [
+    "Implementar grounding toggle en preferences",
+    "Modificar ai_engine para dos modos",
+    "Crear UI components para code snippets"
+  ],
+  "open_questions": [
+    "¿Dónde ubicar el toggle de grounding en la UI?",
+    "¿Cómo manejar la transición entre modos?",
+    "¿Cuántos mensajes mantener en memoria?"
+  ],
+  "problem": {
+    "business_goal": "Mejorar la experiencia de usuario con control sobre IA, herramientas de productividad y memoria conversacional",
+    "constraints": [
+      "No romper funcionalidad existente",
+      "Mantener compatibilidad con motor IA actual",
+      "UI debe permanecer intuitiva"
+    ],
+    "user_request": "Implementar las nuevas características especificadas en NUEVAS_CARACTERISTICAS.MD: grounding toggle, code snippets con botones copy, y memoria conversacional"
+  },
+  "schema_version": "1.0.0",
+  "scope": {
+    "components": [
+      "ai_engine.py",
+      "main.py",
+      "preferences.py",
+      "config.py"
+    ],
+    "files": [
+      "ai_engine.py",
+      "main.py",
+      "preferences.py",
+      "config.py",
+      "NUEVAS_CARACTERISTICAS.MD"
+    ]
+  },
+  "strategies_tried": []
+}

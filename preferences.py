@@ -7,7 +7,7 @@ Interfaz para configurar preferencias de usuario
 import logging
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
-    QComboBox, QPushButton, QGroupBox, QMessageBox, QFrame
+    QComboBox, QPushButton, QGroupBox, QMessageBox, QFrame, QCheckBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon

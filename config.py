@@ -30,11 +30,16 @@ class ConfigManager:
             },
             "ai": {
                 "api_key_encrypted": "",
-                "model": "gemini-2.5-flash-lite-preview-06-17"
+                "model": "gemini-2.5-flash-lite-preview-06-17",
+                "grounding_enabled": False
             },
             "ui": {
                 "theme": "dark",
                 "language": "es"
+            },
+            "conversation": {
+                "history": [],
+                "max_history_length": 10
             }
         }
         
@@ -159,6 +164,40 @@ class ConfigManager:
         
     def set_theme(self, theme: str):
         self._config["ui"]["theme"] = theme
+        
+    # Configuración de Grounding
+    def get_grounding_enabled(self) -> bool:
+        """Obtener estado del grounding"""
+        return self._config.get("ai", {}).get("grounding_enabled", False)
+        
+    def set_grounding_enabled(self, enabled: bool):
+        """Configurar estado del grounding"""
+        self._config["ai"]["grounding_enabled"] = enabled
+        
+    # Configuración de Conversación
+    def get_conversation_history(self) -> list:
+        """Obtener historial de conversación"""
+        return self._config.get("conversation", {}).get("history", [])
+        
+    def set_conversation_history(self, history: list):
+        """Configurar historial de conversación"""
+        self._config["conversation"]["history"] = history
+        
+    def add_conversation_message(self, role: str, message: str):
+        """Agregar mensaje al historial"""
+        history = self.get_conversation_history()
+        history.append({"role": role, "message": message})
+        
+        # Limitar historial según configuración
+        max_length = self._config.get("conversation", {}).get("max_history_length", 50)
+        if len(history) > max_length:
+            history = history[-max_length:]
+            
+        self.set_conversation_history(history)
+        
+    def clear_conversation_history(self):
+        """Limpiar historial de conversación"""
+        self.set_conversation_history([])
         
     # Utilidades
     def is_configured(self) -> bool:
